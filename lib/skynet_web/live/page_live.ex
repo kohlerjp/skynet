@@ -3,24 +3,21 @@ defmodule SkynetWeb.PageLive do
 
   @impl true
   def mount(_params, _session, socket) do
-    if connected?(socket), do: Process.send_after(self(), :update, 30000)
-    terminators = Skynet.TerminatorServer.get_terminators()
-    {:ok, assign(socket, terminators: terminators)}
+    if connected?(socket), do: Process.send_after(self(), :update, 1000)
+    {:ok, assign(socket, terminators: Skynet.TerminatorServer.get_terminators())}
   end
 
   @impl true
-  def handle_event("spawn", %{"q" => query}, socket) do
+  def handle_event("spawn", _value, socket) do
+    {:noreply, assign(socket, terminators: Skynet.TerminatorServer.spawn_terminator())}
+  end
+  def handle_event("kill_terminator", %{"name" => terminator_name}, socket) do
+    {:noreply, assign(socket, terminators: Skynet.TerminatorServer.kill_terminator(terminator_name))}
   end
 
   @impl true
-  def handle_event("kill", %{"q" => query}, socket) do
-  end
-
   def handle_info(:update, socket) do
-    #Process.send_after(self(), :update, 1000)
-    terminators = Skynet.TerminatorServer.get_terminators()
-    {:noreply, assign(socket, :terminators, terminators)}
+    Process.send_after(self(), :update, 1000)
+    {:noreply, assign(socket, :terminators, Skynet.TerminatorServer.get_terminators())}
   end
-
-
 end

@@ -1,3 +1,11 @@
 <div>
+  <button phx-click="spawn">Create Terminator</button>
   Terminators: <%= Enum.count(@terminators) %>
+  <div>
+    <%= for terminator <- @terminators do %>
+      <button phx-value-name="<%= terminator %>" phx-click="kill_terminator" type="button" class="btn btn-danger">
+        <%= terminator %>
+      </button>
+    <% end %>
+  </div>
 </div>

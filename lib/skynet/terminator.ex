@@ -4,7 +4,6 @@ defmodule Skynet.Terminator do
   # Client
   
   def start_link(name) do
-    IO.inspect "STARTING TERMINATOR WITH NAME: #{name}"
     GenServer.start_link(__MODULE__, name)
   end
 
@@ -19,37 +18,32 @@ defmodule Skynet.Terminator do
 
   @impl true
   def handle_info(:replicate, name) do
-    perform_replication(name)
+    perform_replication(:rand.uniform(10))
     schedule_replication()
     {:noreply, name}
   end
   def handle_info(:connor, name) do
-    perform_connor(name) 
+    perform_connor(name, :rand.uniform(100)) 
     schedule_connor()
     {:noreply, name}
   end
 
-
   def schedule_connor() do
-    Process.send_after(self(), :connor, 5000)
+    Process.send_after(self(), :connor, 10000)
   end
 
   def schedule_replication() do
-    Process.send_after(self(), :replicate, 2000)
+    Process.send_after(self(), :replicate, 5000)
   end
 
-  def perform_connor(name) do
-    chance = :rand.uniform(100)
+  def perform_connor(name, chance) do
     if chance <= 25 do
-      IO.inspect("#{name} KILLED")
       Skynet.TerminatorServer.kill_terminator(name)
     end
   end
 
-  def perform_replication(name) do
-    chance = :rand.uniform(10)
+  def perform_replication(chance) do
     if chance <= 2 do
-      IO.inspect("#{name} REPLICATING")
       Skynet.TerminatorServer.spawn_terminator()
     end
   end

@@ -3,16 +3,16 @@ defmodule Skynet.TerminatorServer do
 
   # Client
   
-  def start_link(state) do
-    GenServer.start_link(__MODULE__, :ok, [name: __MODULE__])
+  def start_link(opts) do
+    GenServer.start_link(__MODULE__, :ok, [name: opts[:name]])
   end
 
   def spawn_terminator() do
-    GenServer.cast(__MODULE__, :spawn_terminator)
+    GenServer.call(__MODULE__, :spawn_terminator)
   end
 
   def kill_terminator(name) do
-    GenServer.cast(__MODULE__, {:kill_terminator, name})
+    GenServer.call(__MODULE__, {:kill_terminator, name})
   end
 
   def get_terminators() do
@@ -22,8 +22,9 @@ defmodule Skynet.TerminatorServer do
   # Callbacks
 
   @impl true
+  # State is a tuple of a mapping from terminator name to process ID,
+  # and a counter. The counter is used to create unique names for spawned terminators
   def init(_state) do
-    schedule_list()
     {:ok, {%{}, 1000}}
   end
 
@@ -31,26 +32,19 @@ defmodule Skynet.TerminatorServer do
   def handle_call(:get_terminators, _from, {name_map, _counter} = state) do
     {:reply, Map.keys(name_map), state}
   end
+  def handle_call({:kill_terminator, name}, _from, {name_map, counter}) do
+    terminator_name = Map.get(name_map, name)
+    updated_map = case Skynet.DynamicSupervisor.kill_terminator(terminator_name) do
+      :ok -> Map.delete(name_map, name)
+      {:error, _reason} -> name_map
+    end
 
-  @impl true
-  def handle_cast({:kill_terminator, name}, {name_map, counter}) do
-    DynamicSupervisor.terminate_child(Skynet.DynamicSupervisor, Map.get(name_map, name)) # TODO: handle failure
-    {:noreply, {Map.delete(name_map, name), counter}}
+    {:reply, Map.keys(updated_map), {updated_map, counter}}
   end
-  def handle_cast(:spawn_terminator, {name_map, counter}) do
+  def handle_call(:spawn_terminator, _from, {name_map, counter}) do
     terminator_name = "T-#{counter}"
-    {:ok, pid} = Skynet.DynamicSupervisor.new_terminator(terminator_name) # TODO: handle failure
-    {:noreply, {Map.put(name_map, terminator_name, pid), counter + 1}}
-  end
-
-  @impl true
-  def handle_info(:list, {name_map, _counter} = state) do
-    IO.inspect("#{Enum.count(Map.keys(name_map))} Terminators: #{Map.keys(name_map)}")
-    schedule_list()
-    {:noreply, state}
-  end
-
-  def schedule_list() do # TODO: DELETE
-    #Process.send_after(self(), :list, 10000)
+    {:ok, pid} = Skynet.DynamicSupervisor.new_terminator(terminator_name)
+    updated_map = Map.put(name_map, terminator_name, pid)
+    {:reply, Map.keys(updated_map), {updated_map, counter + 1}}
   end
 end

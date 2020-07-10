@@ -5,6 +5,9 @@ defmodule Skynet.DynamicSupervisor do
     DynamicSupervisor.start_link(__MODULE__, init_arg, name: __MODULE__)
   end
 
+  def kill_terminator(nil) do
+    {:error, :not_found}
+  end
   def kill_terminator(pid) do
     DynamicSupervisor.terminate_child(Skynet.DynamicSupervisor, pid)
   end
